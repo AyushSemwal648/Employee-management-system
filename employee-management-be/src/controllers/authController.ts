@@ -31,7 +31,7 @@ const login = async (req: Request, res: Response) => {
       success: true,
       token,
       user: {
-        _id: user.id,
+        _id: user._id,
         role: user.role,
         name: user.name,
       },
@@ -43,7 +43,14 @@ const login = async (req: Request, res: Response) => {
 };
 
 const verify = (req: Request, res: Response) => {
-  return res.status(200).json({success: true, user: req.user})
+ return res.status(200).json({
+    success: true, 
+    user: {
+      _id: req.user._id,
+      name: req.user.name,
+      role: req.user.role,
+    }
+  });
 }
 
 export { login, verify };

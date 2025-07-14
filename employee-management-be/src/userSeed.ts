@@ -10,7 +10,7 @@ const userRegister = async () => {
       email: "admin@techqilla.com",
       password: hashPassword,
       role: "admin",
-      profileImage: ""
+      image: ""
     })
 
     await newUser.save()

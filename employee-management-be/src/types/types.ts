@@ -3,7 +3,7 @@ export type UserType = {
   email: string;
   password: string;
   role: "admin" | "employee"
-  profileImage?: string
+  image?: string
   createdAt: Date
   updatedAt: Date
 }

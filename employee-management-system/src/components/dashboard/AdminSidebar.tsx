@@ -51,7 +51,7 @@ const AdminSidebar = () => {
           </div>
         </NavLink>
         <NavLink
-          to="/admin-dashboard/salary"
+          to="/admin-dashboard/salary/add"
           className={({ isActive }) => `${isActive ? "bg-white !text-black" : "!text-white"} flex pl-10 py-4 rounded-l-full mt-5 hover:bg-white hover:!text-black` }
         >
           <div className="flex gap-5 items-center">

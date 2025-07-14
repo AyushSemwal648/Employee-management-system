@@ -10,58 +10,68 @@ import axios from "axios";
 
 interface AuthContextType {
   user: UserType | null;
-  login: (user: UserType) => void;
+  login: (user: UserType, token: string) => void;
   logout: () => void;
-  loading: boolean
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserType | null>(null);
-  const [loading, setLoading] = useState<boolean>(true)
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const  verifyUser = async () => {
+    const verifyUser = async () => {
       try {
-        const token = localStorage.getItem('token')
+        const token = localStorage.getItem("token");
         if (token) {
+          console.log("Token found, verifying user...");
           const response = await axios.get(
-            "http://localhost:8000/api/auth/verify", {
-            headers: {
-              "Authorization": `Bearer ${token}`
+            "http://localhost:8000/api/auth/verify",
+              
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             }
-          }
           );
 
-          if (response.data.success) {
+          console.log("Verify response:", response.data);
+
+          if (response.data.success && response.data.user) {
+            console.log("User verified:", response.data.user);
             setUser(response.data.user);
+          } else {
+            console.log("Verification failed, removing token");
+            localStorage.removeItem("token");
+            setUser(null);
           }
         } else {
-          setUser(null)
-          setLoading(false)
+          console.log("No token found");
+          setUser(null);
         }
       } catch (error) {
-        if (
-          axios.isAxiosError(error) &&
-          error.response &&
-          !error.response.data.success
-        ) {
-          setUser(null)
-        }
+        console.error("Verification error:", error);
+        localStorage.removeItem("token");
+        setUser(null);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     };
 
-    verifyUser()
+    verifyUser();
   }, []);
 
-  const login = (user: UserType | null) => {
+  const login = (user: UserType, token: string) => {
+    console.log("Login called with user:", user);
+    console.log("Login called with token:", token);
+    localStorage.setItem("token", token);
     setUser(user);
   };
 
   const logout = () => {
+    console.log("Logout called");
     setUser(null);
     localStorage.removeItem("token");
   };
@@ -73,7 +83,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// 4. Custom hook for using the context easily
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

@@ -9,7 +9,7 @@ type DepartmentType = {
   sno: string;
   dep_name: string;
   description: string;
-  action: React.ReactNode;
+  action?: React.ReactNode;
 };
 
 const DepartmentList = () => {

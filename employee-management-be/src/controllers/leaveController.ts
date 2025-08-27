@@ -1,10 +1,57 @@
 import type { Request, Response } from "express";
 import Leave from "../models/leave.ts";
 import Employee from "../models/employee.ts";
+import { Types } from "mongoose";
 
 const MONTHLY_LEAVE_ALLOCATION = {
   casual: 1,
   sick: 1
+};
+
+// Define interfaces for populated documents
+interface PopulatedUser {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+  role: string;
+}
+
+interface PopulatedDepartment {
+  _id: Types.ObjectId;
+  name: string;
+}
+
+interface PopulatedEmployee {
+  _id: Types.ObjectId;
+  userId: PopulatedUser;
+  employeeId: string;
+  department: PopulatedDepartment;
+  doj: Date;
+  dob?: Date;
+  gender?: string;
+  phoneNumber?: string;
+  salary: number;
+}
+
+// Type guard to check if employeeId is populated
+const isPopulatedEmployee = (employeeId: any): employeeId is PopulatedEmployee => {
+  return employeeId && typeof employeeId === 'object' && 'userId' in employeeId;
+};
+
+// Helper function to safely access populated employee data
+const getEmployeeInfo = (employeeId: any) => {
+  if (isPopulatedEmployee(employeeId)) {
+    return {
+      name: employeeId.userId?.name || 'Unknown',
+      employeeCode: employeeId.employeeId || 'N/A',
+      department: employeeId.department?.name || 'N/A'
+    };
+  }
+  return {
+    name: 'Unknown',
+    employeeCode: 'N/A',
+    department: 'N/A'
+  };
 };
 
 // Helper function to calculate available leaves based on date of joining
@@ -349,4 +396,171 @@ const getLeaveBreakdown = async (req: Request, res: Response) => {
   }
 };
 
-export { addLeave, getLeaveBalance, getLeaveBreakdown };
+const getAllLeaves = async (req: Request, res: Response) => {
+  try {
+    const { page = 1, limit = 10, status, leaveType, search } = req.query;
+    
+    // Build filter object
+    const filter: any = {};
+    
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+    
+    if (leaveType && leaveType !== 'all') {
+      filter.leaveType = leaveType;
+    }
+
+    // Calculate pagination
+    const pageNumber = parseInt(page as string);
+    const limitNumber = parseInt(limit as string);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Get leaves with nested employee and user details
+    const leaves = await Leave.find(filter)
+      .populate({
+        path: 'employeeId',
+        populate: [
+          {
+            path: 'userId',
+            select: 'name email'
+          },
+          {
+            path: 'department',
+            select: 'name'
+          }
+        ]
+      })
+      .sort({ appliedDate: -1 })
+      .skip(skip)
+      .limit(limitNumber);
+
+    // Filter by search if provided
+    let filteredLeaves = leaves;
+    if (search) {
+      const searchTerm = (search as string).toLowerCase();
+      filteredLeaves = leaves.filter(leave => {
+        const employeeInfo = getEmployeeInfo(leave.employeeId);
+        return employeeInfo.name.toLowerCase().includes(searchTerm) || 
+               employeeInfo.employeeCode.toLowerCase().includes(searchTerm);
+      });
+    }
+
+    // Get total count for pagination (this is a simplified approach)
+    const totalCount = await Leave.countDocuments(filter);
+    const totalPages = Math.ceil(totalCount / limitNumber);
+
+    // Format the response
+    const formattedLeaves = filteredLeaves.map(leave => {
+      const employeeInfo = getEmployeeInfo(leave.employeeId);
+      return {
+        _id: leave._id,
+        employeeName: employeeInfo.name,
+        employeeCode: employeeInfo.employeeCode,
+        department: employeeInfo.department,
+        leaveType: leave.leaveType,
+        fromDate: leave.fromDate,
+        endDate: leave.endDate,
+        totalDays: leave.totalDays,
+        isHalfDay: leave.isHalfDay,
+        halfDayPeriod: leave.halfDayPeriod,
+        reason: leave.reason,
+        status: leave.status,
+        appliedDate: leave.appliedDate
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        leaves: formattedLeaves,
+        pagination: {
+          currentPage: pageNumber,
+          totalPages,
+          totalCount,
+          hasNextPage: pageNumber < totalPages,
+          hasPrevPage: pageNumber > 1
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getAllLeaves:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Error fetching leaves",
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+};
+
+const updateLeaveStatus = async (req: Request, res: Response) => {
+  try {
+    const { leaveId } = req.params;
+    const { status, comments } = req.body;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid status. Must be 'approved' or 'rejected'"
+      });
+    }
+
+    const leave = await Leave.findByIdAndUpdate(
+      leaveId,
+      { 
+        status,
+        adminComments: comments || '',
+        reviewedDate: new Date()
+      },
+      { new: true }
+    ).populate({
+      path: 'employeeId',
+      populate: [
+        {
+          path: 'userId',
+          select: 'name email'
+        },
+        {
+          path: 'department',
+          select: 'name'
+        }
+      ]
+    });
+
+    if (!leave) {
+      return res.status(404).json({
+        success: false,
+        error: "Leave request not found"
+      });
+    }
+
+    const employeeInfo = getEmployeeInfo(leave.employeeId);
+
+    return res.status(200).json({
+      success: true,
+      message: `Leave ${status} successfully`,
+      leave: {
+        _id: leave._id,
+        employeeName: employeeInfo.name,
+        employeeCode: employeeInfo.employeeCode,
+        department: employeeInfo.department,
+        leaveType: leave.leaveType,
+        fromDate: leave.fromDate,
+        endDate: leave.endDate,
+        totalDays: leave.totalDays,
+        status: leave.status,
+        appliedDate: leave.appliedDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in updateLeaveStatus:', error);
+    return res.status(500).json({
+      success: false,
+      error: "Error updating leave status"
+    });
+  }
+};
+
+export { addLeave, getLeaveBalance, getLeaveBreakdown, getAllLeaves, updateLeaveStatus };

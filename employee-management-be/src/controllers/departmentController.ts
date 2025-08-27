@@ -16,7 +16,7 @@ const addDepartment = async (req: Request, res: Response) => {
       description
     })
 
-      await newDep.save()
+    await newDep.save()
     return res.status(200).json({ success: true, department: newDep })
   } catch (error) {
     console.error("Department save error:", error);
@@ -60,7 +60,8 @@ const UpdateDepartment = async (req: Request, res: Response) => {
 const deleteDepartment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const deleteDep = await Department.findByIdAndDelete({ _id: id })
+    const deleteDep = await Department.findById({ _id: id })
+    await deleteDep?.deleteOne()
     return res.status(200).json({ success: true, deleteDep })
   } catch (error) {
     return res.status(500).json({ success: false, error: "edit Department Server Error" })

@@ -10,6 +10,7 @@ import departmentRouter from "./routes/department.ts"
 import employeeRouter from "./routes/employee.ts"
 import salaryRouter from "./routes/salary.ts"
 import leaveRouter from "./routes/leave.ts"
+import settingRouter from "./routes/setting.ts"
 
 const app = express()
 const port = process.env.PORT
@@ -26,6 +27,7 @@ async function startServer() {
     app.use('/api/employees', employeeRouter)
     app.use('/api/salary', salaryRouter)
     app.use('/api/leave',leaveRouter)
+    app.use('/api/setting',settingRouter)
     
     
     // // Routes

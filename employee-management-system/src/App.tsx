@@ -17,6 +17,8 @@ import EmployeeDashboardOverview from "./components/employeeDashboard/EmployeeDa
 import Profile from "./components/employeeDashboard/Profile";
 import ViewLeavies from "./components/employeeDashboard/leaves/ViewLeavies";
 import AddLeaves from "./components/employeeDashboard/leaves/AddLeaves";
+import Setting from "./components/employeeDashboard/setting/Setting";
+import EmployeeLeaves from "./components/leaves/EmployeeLeaves";
 
 function App() {
   return (
@@ -69,7 +71,7 @@ function App() {
           ></Route>
           <Route
             path="/admin-dashboard/leaves"
-            element={<DashboardOverview />}
+            element={<EmployeeLeaves/>}
           ></Route>
           <Route
             path="/admin-dashboard/salary"
@@ -97,6 +99,7 @@ function App() {
           />
           <Route path="/employee-dashboard/leaves" element={<ViewLeavies />} />
           <Route path="/employee-dashboard/add-leave" element={<AddLeaves />} />
+          <Route path="/employee-dashboard/settings" element={<Setting />} />
         </Route>
       </Routes>
     </>
